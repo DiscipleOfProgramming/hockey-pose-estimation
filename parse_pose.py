@@ -3,6 +3,7 @@ import cv2
 import json
 import matplotlib.pyplot as plt
 import os
+from parse_halpe26 import wanted_joints, normalize_halpe26
 # import polygon as poly
 
 
@@ -12,6 +13,7 @@ def load_keypoints(json_path):
         # Loop over person detections and convert keypts to numpy arr
         for i, det in enumerate(data):
             data[i]['keypoints'] = np.array(det['keypoints']).reshape((-1, 3))
+            data[i]['keypoints'] = data[i]['keypoints'][wanted_joints]
             data[i]['box'] = np.array(det['box'])
         return data
 
@@ -64,6 +66,7 @@ def plot_poses(poses, img, marker_set, save_folder, normalized = True):
             plt.imshow(crop)
             plt.scatter(det['keypoints'][:, 0], det['keypoints'][:, 1], c='r', s=40)
         plt.show()
+        fig.canvas.draw()
         data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
         data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
         # cv2.imshow('plot', data)
@@ -137,11 +140,14 @@ def plt_marker_pts(poses, img, marker_set):
 
 if __name__ == '__main__':
     img_path = 'out-002.jpg'
-    json_path = 'alphapose-results.json'
-    example_img_saveloc = 'saved_example_poses'
+    json_path = 'alphapose-results1173_halpe26.json'
+    example_img_saveloc = 'saved_example_poses_halpe26'
     
     marker_set_MPII = ['.', 'v', '<', '1', '8', 's', 'p', '*', 'x', 'D', \
                     '|', '_', '$C$', '$R$', '$P$'] #15 different plot markers
+
+    marker_set_halpe26 = ['.', 'v', '<', '1', '8', 's', 'p', '*', 'x', 'D', \
+                    '|', '_', '$C$', '$R$'] #14 different plot markers
 
     marker_set_COCO = ['.', 'v', '<', '1', '8', 's', 'p', '*', 'x', 'D', \
                     '|', '_', '$C$', '$R$', '$P$', '$U$', '$W$', '$Z$'] #18 different plot markers
@@ -154,8 +160,9 @@ if __name__ == '__main__':
     
     # plot_poses(poses, img, normalized=False)
     
-    norm_poses = normalize_detections(poses, img)
-    plot_poses(norm_poses, img, marker_set_COCO, example_img_saveloc)
+    # norm_poses = normalize_detections(poses, img)
+    norm_poses = normalize_halpe26(poses, img)
+    plot_poses(norm_poses, img, marker_set_halpe26, example_img_saveloc)
     # polygon_maker(norm_poses, img, 5)
     # plt_marker_pts(poses, img, marker_set_COCO)
     
