@@ -1,9 +1,9 @@
-from matplotlib import markers
 import numpy as np
 import cv2
 import json
 import matplotlib.pyplot as plt
-import polygon as poly
+import os
+# import polygon as poly
 
 
 def load_keypoints(json_path):
@@ -35,11 +35,10 @@ def normalize_detections(poses, img, format='MPII', lhip_idx=11, rhip_idx=8):
         keypts_norm[:, 1] = (center_y - keypts[:, 1]) / nrows
         
         poses[i]['keypoints'][:, :-1] = keypts_norm
-         
     
     return poses
 
-def plot_poses(poses, img, normalized = True):
+def plot_poses(poses, img, marker_set, save_folder, normalized = True):
     for i, det in enumerate(poses):
         x1 = int(det['box'][0])
         x2 = int(det['box'][2] + x1)
@@ -47,16 +46,30 @@ def plot_poses(poses, img, normalized = True):
         y2 = int(det['box'][3] + y1)
         crop = img[y1:y2, x1:x2]
         if normalized:
-            plt.title(f'Player {i} normalized pose')
-            plt.scatter(det['keypoints'][:, 0], det['keypoints'][:, 1])
-            
-            plt.xlim((-1,1))
-            plt.ylim((-1,1))
+            fig, ax = plt.subplots()
+            ax.spines['top'].set_visible(False)
+            ax.spines['left'].set_visible(False)
+            ax.spines['bottom'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.set_facecolor((0, 0, 0))
+            # plt.title(f'Player {i} normalized pose')
+            for j, pt in enumerate(det['keypoints']):
+                plt.scatter(pt[0], pt[1], s=15, marker=marker_set[j])
+                plt.xlim((-1,1))
+                plt.ylim((-1,1))
         else:
             plt.title(f'Player {i} pose')
             plt.imshow(crop)
             plt.scatter(det['keypoints'][:, 0], det['keypoints'][:, 1], c='r', s=40)
         plt.show()
+        data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+        data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+        # cv2.imshow('plot', data)
+        save_path = os.path.join(save_folder, f'player-{i}-norm-pose.png')
+        cv2.imwrite(save_path, data)
+
 
 def point_to_vertex(pt, r, theta):
     """(x, y, c) -> n vertices that can be drawn with cv2.polylines"""
@@ -101,28 +114,48 @@ def cv_marker_pts(poses, img):
     for i, det in enumerate(poses):
         pts = (det['keypoints'][:, :-1]).astype(np.int32)
         ln_type = cv2.LINE_AA
-        for i, pt in enumerate(pts):
-            if i == 7:
+        for j, pt in enumerate(pts):
+            if j == 7:
                 ln_type = cv2.FILLED
-            mark_type = i % 7
+            mark_type = j % 7
             joint_img = cv2.drawMarker(joint_img, tuple(pt), (255, 0 ,0), markerType=mark_type, markerSize=5, thickness=1,  line_type=cv2.LINE_AA)
             cv2.imshow('frame', joint_img)
             cv2.waitKey(0)
         pass
 
+def plt_marker_pts(poses, img, marker_set):
+    joint_img = np.zeros((1080, 1920))
+
+    # Loop through each person
+    for i, det in enumerate(poses):
+        # Loop through each point, giving each one a new marker
+        for j, pt in enumerate(det['keypoints']):
+            plt.imshow(img, origin='upper')
+            plt.scatter(pt[0], pt[1], marker=marker_set[j], s=13)
+        plt.show()
+        plt.clf()
+
 if __name__ == '__main__':
     img_path = 'out-002.jpg'
     json_path = 'alphapose-results.json'
+    example_img_saveloc = 'saved_example_poses'
     
+    marker_set_MPII = ['.', 'v', '<', '1', '8', 's', 'p', '*', 'x', 'D', \
+                    '|', '_', '$C$', '$R$', '$P$'] #15 different plot markers
+
+    marker_set_COCO = ['.', 'v', '<', '1', '8', 's', 'p', '*', 'x', 'D', \
+                    '|', '_', '$C$', '$R$', '$P$', '$U$', '$W$', '$Z$'] #18 different plot markers
+
     img = cv2.imread(img_path)
     poses = load_keypoints(json_path)
+    # plt_marker_pts(poses, img, marker_set_COCO)
     # polygon_maker(poses, img, 15)
-    cv_marker_pts(poses, img)
+    # cv_marker_pts(poses, img)
     
-    exit(0)
     # plot_poses(poses, img, normalized=False)
     
     norm_poses = normalize_detections(poses, img)
-    # plot_poses(norm_poses, img)
-    polygon_maker(norm_poses, img, 5)
+    plot_poses(norm_poses, img, marker_set_COCO, example_img_saveloc)
+    # polygon_maker(norm_poses, img, 5)
+    # plt_marker_pts(poses, img, marker_set_COCO)
     
